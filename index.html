@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adventure Quest: Zakat - Petualangan Edukasi Kelas 4 SD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0fdf4; /* Light green background */
+            background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%2322c55e" fill-opacity="0.1"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');
+            overflow-x: hidden;
+        }
+        h1, h2, h3, .title-font {
+            font-family: 'Fredoka One', cursive;
+        }
+        .btn-game {
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 0 #15803d; /* Darker green for shadow */
+        }
+        .btn-game:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #15803d;
+        }
+        .level-node {
+            transition: all 0.3s ease;
+        }
+        .level-node.locked {
+            filter: grayscale(100%);
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .level-node.current {
+            transform: scale(1.1);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .animate-slide-in { animation: slideIn 0.5s ease-out forwards; }
+        .animate-shake { animation: shake 0.5s ease-in-out; }
+        
+        #map-container {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(to bottom, #7dd3fc, #bae6fd);
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 4px solid #38bdf8;
+            margin-bottom: 1rem;
+        }
+        
+        .path-line {
+            position: absolute;
+            height: 4px;
+            background-color: #cbd5e1;
+            z-index: 1;
+            transform-origin: left center;
+        }
+        .path-line.active {
+            background-color: #22c55e;
+        }
+        
+        /* Modal styling */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+        }
+        
+        /* Particle effects container */
+        #particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        .particle {
+            position: absolute;
+            background-color: #fbbf24; /* Yellow for coins/stars */
+            border-radius: 50%;
+            animation: fall 1s linear forwards;
+        }
+        
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Responsive grid for map nodes */
+        .map-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            padding: 10px;
+            height: 100%;
+            align-items: center;
+            justify-items: center;
+            position: relative;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col">
+
+    <div id="start-screen" class="flex-1 flex flex-col items-center justify-center p-4 bg-gradient-to-b from-green-300 to-green-500">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-lg animate-slide-in relative overflow-hidden border-8 border-green-600">
+            <!-- Decorative Elements -->
+            <div class="absolute top-[-20px] left-[-20px] text-6xl opacity-20">🕌</div>
+            <div class="absolute bottom-[-20px] right-[-20px] text-6xl opacity-20">💰</div>
+            
+            <h1 class="text-4xl md:text-5xl text-green-700 mb-4 drop-shadow-md">Adventure Quest:<br><span class="text-yellow-500 text-5xl md:text-6xl">ZAKAT</span></h1>
+            <p class="text-lg text-slate-600 mb-6 font-bold">Petualangan Belajar Zakat untuk Kelas 4 SD!</p>
+            <p class="mb-8 text-slate-500">Bantu Zaki sang pengembara menyelesaikan misi-misi kebaikan, kumpulkan pahala, dan pelajari rahasia Zakat!</p>
+            
+            <button onclick="startGame()" class="btn-game bg-yellow-400 hover:bg-yellow-500 text-yellow-900 title-font text-2xl py-4 px-10 rounded-full inline-flex items-center justify-center w-full shadow-[0_6px_0_#ca8a04]">
+                <svg class="w-8 h-8 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                MULAI PETUALANGAN
+            </button>
+        </div>
+    </div>
+
+    <div id="game-screen" class="hidden flex-1 flex flex-col p-4 max-w-4xl mx-auto w-full">
+        <!-- Header / HUD -->
+        <div class="flex justify-between items-center bg-white p-3 rounded-2xl shadow-md border-b-4 border-green-500 mb-4">
+            <div class="flex items-center gap-4">
+                <!-- Lives -->
+                <div class="flex items-center gap-1 bg-red-100 px-3 py-1 rounded-full border-2 border-red-300">
+                    <span class="text-2xl">❤️</span>
+                    <span id="lives-display" class="title-font text-xl text-red-600">3</span>
+                </div>
+                <!-- Points -->
+                <div class="flex items-center gap-1 bg-yellow-100 px-3 py-1 rounded-full border-2 border-yellow-300">
+                    <span class="text-2xl">⭐</span>
+                    <span id="score-display" class="title-font text-xl text-yellow-700">0</span>
+                </div>
+            </div>
+            <div class="title-font text-green-700 text-xl bg-green-100 px-4 py-1 rounded-full border-2 border-green-300">
+                Level <span id="current-level-display">1</span>/15
+            </div>
+        </div>
+
+        <!-- Mini Map -->
+        <div id="map-container" class="shadow-inner relative bg-cover bg-center" style="background-image: url('data:image/svg+xml,%3Csvg width=\'100%25\' height=\'100%25\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cdefs%3E%3Cpattern id=\'grid\' width=\'40\' height=\'40\' patternUnits=\'userSpaceOnUse\'%3E%3Cpath d=\'M 40 0 L 0 0 0 40\' fill=\'none\' stroke=\'%23ffffff\' stroke-width=\'1\' stroke-opacity=\'0.3\'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=\'100%25\' height=\'100%25\' fill=\'url(%23grid)\'/%3E%3C/svg%3E'); background-color:#a7f3d0;">
+            <div id="map-paths"></div>
+            <div id="map-nodes" class="map-grid">
+                <!-- Nodes will be generated by JS -->
+            </div>
+            <!-- Character Avatar on Map -->
+            <div id="player-avatar" class="absolute w-8 h-8 bg-blue-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white text-xs font-bold transition-all duration-500 ease-in-out z-20" style="left: 10%; top: 50%; transform: translate(-50%, -50%);">
+                👦
+            </div>
+        </div>
+
+        <!-- Story & Challenge Area -->
+        <div class="bg-white rounded-3xl shadow-lg p-6 flex-1 flex flex-col border-4 border-green-400 relative overflow-hidden">
+            <!-- Level Title -->
+            <h2 id="level-title" class="text-2xl text-center text-green-700 mb-2 border-b-2 border-dashed border-green-200 pb-2">Judul Level</h2>
+            
+            <!-- Story Text -->
+            <div class="flex items-start mb-6 gap-4 bg-green-50 p-4 rounded-xl border border-green-200">
+                <div class="text-4xl">📜</div>
+                <p id="story-text" class="text-lg leading-relaxed text-gray-700 flex-1">
+                    Cerita level akan muncul di sini...
+                </p>
+            </div>
+
+            <!-- Challenge / Question -->
+            <div class="flex-1 flex flex-col justify-center">
+                <h3 class="text-xl text-center font-bold text-slate-800 mb-6 drop-shadow-sm" id="question-text">
+                    Pertanyaan akan muncul di sini?
+                </h3>
+                
+                <!-- Options Container -->
+                <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl mx-auto">
+                    <!-- Buttons generated by JS -->
+                </div>
+            </div>
+
+            <!-- Tools: Hint Button -->
+            <div class="mt-6 flex justify-center">
+                <button onclick="useHint()" id="hint-btn" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-2 px-6 rounded-full border-2 border-blue-300 flex items-center gap-2 transition-colors">
+                    <span>💡</span> Minta Petunjuk (Sisa: <span id="hint-count">3</span>)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal (Correct/Wrong Answer) -->
+    <div id="feedback-modal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 flex">
+        <div id="feedback-content" class="bg-white rounded-3xl p-8 max-w-sm w-[90%] text-center shadow-2xl transform scale-90 transition-transform duration-300">
+            <div id="feedback-icon" class="text-6xl mb-4">✅</div>
+            <h2 id="feedback-title" class="text-3xl title-font mb-2">Benar!</h2>
+            <p id="feedback-message" class="text-gray-600 mb-6">Penjelasan akan muncul di sini.</p>
+            <div id="feedback-reward" class="text-xl font-bold text-yellow-500 mb-6 hidden">
+                +10 Pahala ⭐
+            </div>
+            <button id="feedback-btn" onclick="nextLevel()" class="btn-game bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full w-full">
+                Lanjut Perjalanan ➔
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over / Victory Modal -->
+    <div id="endgame-modal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 flex">
+        <div class="bg-gradient-to-b from-yellow-100 to-yellow-300 border-4 border-yellow-500 rounded-3xl p-8 max-w-md w-[90%] text-center shadow-2xl">
+            <div id="endgame-icon" class="text-8xl mb-4 drop-shadow-md">🏆</div>
+            <h2 id="endgame-title" class="text-4xl title-font text-yellow-800 mb-2">Alhamdulillah!</h2>
+            <p id="endgame-message" class="text-lg text-yellow-900 mb-6 font-bold">Kamu telah menyelesaikan petualangan Zakat!</p>
+            
+            <div class="bg-white bg-opacity-70 rounded-xl p-4 mb-6 border-2 border-yellow-400">
+                <p class="text-gray-600 mb-1">Total Pahala Terkumpul:</p>
+                <div class="text-4xl title-font text-yellow-600 flex items-center justify-center gap-2">
+                    <span id="final-score">150</span> ⭐
+                </div>
+            </div>
+            
+            <button onclick="resetGame()" class="btn-game bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-full w-full shadow-[0_4px_0_#1d4ed8]">
+                Main Lagi 🔄
+            </button>
+        </div>
+    </div>
+
+    <!-- Particles Container -->
+    <div id="particles"></div>
+
+    <!-- Message Box (Alert Alternative) -->
+    <div id="message-box" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg z-50 hidden transition-opacity duration-300 opacity-0">
+        Message here
+    </div>
+
+    <script>
+        // Game Data (15 Levels)
+        const levels = [
+            {
+                id: 1,
+                title: "Desa Permulaan",
+                story: "Zaki baru saja tiba di Desa Makmur. Penduduk desa sedang bersiap menyambut Idul Fitri. Kepala Desa bertanya kepada Zaki, 'Nak, ibadah apa yang wajib kita keluarkan berupa makanan pokok menjelang Idul Fitri untuk menyucikan jiwa?'",
+                question: "Ibadah apa yang dimaksud Kepala Desa?",
+                options: [
+                    { text: "Zakat Mal", correct: false },
+                    { text: "Zakat Fitrah", correct: true },
+                    { text: "Sedekah", correct: false },
+                    { text: "Infaq", correct: false }
+                ],
+                hint: "Fokus pada kata 'makanan pokok', 'menjelang Idul Fitri', dan 'menyucikan jiwa'.",
+                explanation: "Zakat Fitrah adalah zakat yang diwajibkan atas setiap jiwa muslim, dibayarkan dengan makanan pokok (seperti beras) menjelang Idul Fitri untuk menyucikan jiwa."
+            },
+            {
+                id: 2,
+                title: "Gubuk Kakek Tua",
+                story: "Di ujung desa, Zaki bertemu Kakek Somad. Kakek Somad ingin membayar Zakat Fitrah tapi lupa jumlahnya. 'Zaki, berapa kilogram beras yang harus kakek siapkan untuk satu orang?'",
+                question: "Berapa ukuran Zakat Fitrah berupa beras untuk satu orang di Indonesia?",
+                options: [
+                    { text: "1 Kilogram", correct: false },
+                    { text: "2,5 Kilogram (3,5 Liter)", correct: true },
+                    { text: "5 Kilogram", correct: false },
+                    { text: "10 Kilogram", correct: false }
+                ],
+                hint: "Ukurannya sama dengan 1 sha' gandum/kurma, yang jika dikonversi ke beras sekitar 2,5 kg atau 3,5 liter.",
+                explanation: "Ukuran Zakat Fitrah adalah 1 sha' makanan pokok setempat. Di Indonesia yang mayoritas mengonsumsi beras, setara dengan 2,5 Kg atau 3,5 Liter per orang."
+            },
+            {
+                id: 3,
+                title: "Pasar Saudagar Kaya",
+                story: "Zaki melanjutkan perjalanan ke kota dan melihat Pak Haji Ali, saudagar kaya yang sedang menghitung emas dan perak serta keuntungan dagangnya. Pak Haji Ali ingin membersihkan hartanya.",
+                question: "Zakat apa yang dikeluarkan untuk membersihkan harta benda (kekayaan) dari hak orang lain?",
+                options: [
+                    { text: "Zakat Fitrah", correct: false },
+                    { text: "Zakat Mal", correct: true },
+                    { text: "Wakaf", correct: false },
+                    { text: "Fidyah", correct: false }
+                ],
+                hint: "Kata 'Mal' dalam bahasa Arab berarti Harta.",
+                explanation: "Zakat Mal (Zakat Harta) adalah zakat yang dikenakan atas segala jenis harta, yang secara zat maupun substansi perolehannya, tidak bertentangan dengan ketentuan agama."
+            },
+            {
+                id: 4,
+                title: "Timbangan Keadilan",
+                story: "Seorang pedagang bingung apakah hartanya sudah wajib dizakati atau belum. Dia bertanya, 'Apakah aku bisa langsung berzakat berapapun hartaku?'",
+                question: "Batas jumlah/kadar harta yang telah dimiliki sehingga seseorang wajib mengeluarkan zakat mal disebut...",
+                options: [
+                    { text: "Haul", correct: false },
+                    { text: "Nisab", correct: true },
+                    { text: "Muzakki", correct: false },
+                    { text: "Mustahik", correct: false }
+                ],
+                hint: "Kata ini berawalan huruf 'N' dan berarti batas minimal.",
+                explanation: "Nisab adalah batasan minimal jumlah harta yang wajib dikeluarkan zakatnya. Setiap jenis harta (emas, perniagaan, pertanian) memiliki Nisab yang berbeda-beda."
+            },
+            {
+                id: 5,
+                title: "Jam Pasir Waktu",
+                story: "Pedagang tadi kembali bertanya, 'Hartaku sudah mencapai nisab, tapi baru kumiliki selama 2 bulan. Apakah aku sudah wajib berzakat mal?'",
+                question: "Batas waktu lamanya harta dimiliki oleh seseorang (biasanya 1 tahun qamariyah) agar wajib dizakati disebut...",
+                options: [
+                    { text: "Nisab", correct: false },
+                    { text: "Haul", correct: true },
+                    { text: "Waktu Maghrib", correct: false },
+                    { text: "Idul Fitri", correct: false }
+                ],
+                hint: "Kata ini berawalan huruf 'H' dan berarti satu tahun penuh.",
+                explanation: "Haul adalah batasan waktu satu tahun Hijriyah/Qamariyah kepemilikan harta. Syarat Haul berlaku untuk zakat emas, perak, perniagaan, dan peternakan (tidak berlaku untuk pertanian yang dizakati saat panen)."
+            },
+            {
+                id: 6,
+                title: "Rukun & Syarat (Pos Pemeriksaan)",
+                story: "Di pos penjagaan menuju desa tetangga, Zaki ditanya oleh penjaga tentang pemahamannya terhadap rukun Islam. 'Anak muda, zakat itu wajib, tapi Rukun Islam ke berapakah Zakat itu?'",
+                question: "Zakat merupakan Rukun Islam ke...",
+                options: [
+                    { text: "Pertama", correct: false },
+                    { text: "Kedua", correct: false },
+                    { text: "Ketiga", correct: true },
+                    { text: "Keempat", correct: false }
+                ],
+                hint: "Urutannya: Syahadat, Shalat, ... , Puasa, Haji.",
+                explanation: "Zakat adalah Rukun Islam ke-3, setelah membaca dua kalimat syahadat dan mendirikan shalat."
+            },
+            {
+                id: 7,
+                title: "Orang yang Berzakat",
+                story: "Zaki melihat rombongan orang membawa beras ke Masjid. Pak Ustadz mencatat nama-nama mereka di buku besar.",
+                question: "Orang (umat Islam) yang wajib mengeluarkan atau membayar zakat disebut...",
+                options: [
+                    { text: "Mustahik", correct: false },
+                    { text: "Muzakki", correct: true },
+                    { text: "Amil", correct: false },
+                    { text: "Gharim", correct: false }
+                ],
+                hint: "Mirip dengan kata Zakat. Mustahik adalah yang menerima, kalau yang memberi?",
+                explanation: "Muzakki adalah sebutan untuk orang atau badan yang dimiliki oleh orang Muslim yang berkewajiban menunaikan zakat."
+            },
+            {
+                id: 8,
+                title: "Gerbang 8 Golongan",
+                story: "Zaki tiba di depan sebuah gerbang besar dengan 8 lambang berbeda. Ada tulisan di atasnya: 'Hanya mereka yang berhak yang boleh menerima Zakat.'",
+                question: "Orang-orang yang berhak menerima zakat (Mustahik) terdiri dari berapa golongan menurut Al-Qur'an Surat At-Taubah ayat 60?",
+                options: [
+                    { text: "4 Golongan", correct: false },
+                    { text: "6 Golongan", correct: false },
+                    { text: "8 Golongan", correct: true },
+                    { text: "10 Golongan", correct: false }
+                ],
+                hint: "Sering disebut sebagai 'Asnaf yang ... (angka)'",
+                explanation: "Menurut QS. At-Taubah ayat 60, ada 8 asnaf (golongan) yang berhak menerima zakat: Fakir, Miskin, Amil, Mualaf, Riqab, Gharim, Fi Sabilillah, dan Ibnu Sabil."
+            },
+            {
+                id: 9,
+                title: "Lembah Orang Kesulitan",
+                story: "Di sebuah lembah, Zaki menemui seorang kakek yang tidak memiliki harta benda sama sekali dan tidak memiliki pekerjaan untuk memenuhi kebutuhan hidupnya walau sekadar makan hari itu.",
+                question: "Orang yang sangat sengsara hidupnya, tidak punya harta dan tenaga untuk memenuhi kebutuhan hidupnya disebut golongan...",
+                options: [
+                    { text: "Fakir", correct: true },
+                    { text: "Miskin", correct: false },
+                    { text: "Gharim", correct: false },
+                    { text: "Mualaf", correct: false }
+                ],
+                hint: "Kondisinya lebih parah/sulit daripada golongan 'Miskin'.",
+                explanation: "Fakir adalah orang yang tidak memiliki harta dan penghasilan, atau memiliki tapi sangat tidak mencukupi untuk kebutuhan dasar sehari-hari."
+            },
+            {
+                id: 10,
+                title: "Rumah Keluarga Pekerja Keras",
+                story: "Zaki mengunjungi rumah Pak Budi. Pak Budi bekerja setiap hari dari pagi hingga sore, namun penghasilannya tetap tidak mencukupi untuk membiayai sekolah anaknya dan makan keluarganya.",
+                question: "Orang yang mempunyai harta/pekerjaan, namun tidak mencukupi untuk memenuhi kebutuhan dasar keluarganya disebut...",
+                options: [
+                    { text: "Fakir", correct: false },
+                    { text: "Miskin", correct: true },
+                    { text: "Amil", correct: false },
+                    { text: "Ibnu Sabil", correct: false }
+                ],
+                hint: "Mereka bekerja dan punya penghasilan, tapi 'kurang'. Berbeda dengan Fakir yang sama sekali tidak punya.",
+                explanation: "Miskin adalah orang yang memiliki sumber penghasilan, tetapi tidak cukup untuk memenuhi kebutuhan dasar sehari-hari dirinya dan keluarganya."
+            },
+            {
+                id: 11,
+                title: "Tenda Panitia Zakat",
+                story: "Di halaman masjid, sekumpulan pemuda terlihat sibuk menimbang beras, mencatat, dan membagikan bingkisan kepada warga yang membutuhkan.",
+                question: "Panitia atau orang yang bertugas mengumpulkan, mengelola, dan membagikan zakat disebut...",
+                options: [
+                    { text: "Mualaf", correct: false },
+                    { text: "Gharim", correct: false },
+                    { text: "Amil", correct: true },
+                    { text: "Fi Sabilillah", correct: false }
+                ],
+                hint: "Kata ini sering dipakai di kepanitiaan masjid saat Ramadhan (Panitia ... Zakat).",
+                explanation: "Amil Zakat adalah orang-orang atau lembaga yang ditugaskan untuk mengumpulkan dan mendistribusikan zakat."
+            },
+            {
+                id: 12,
+                title: "Pertemuan Saudara Baru",
+                story: "Zaki berkenalan dengan Paman Arthur. Paman Arthur baru sebulan yang lalu membaca syahadat dan memeluk agama Islam. Hatinya masih butuh bimbingan dan dukungan.",
+                question: "Orang yang baru masuk agama Islam dan iman-nya masih perlu diperkuat termasuk mustahik zakat golongan...",
+                options: [
+                    { text: "Ibnu Sabil", correct: false },
+                    { text: "Mualaf", correct: true },
+                    { text: "Amil", correct: false },
+                    { text: "Fakir", correct: false }
+                ],
+                hint: "Sering disebut 'Saudara ... ' (berawalan huruf M).",
+                explanation: "Mualaf adalah orang yang baru memeluk agama Islam. Memberikan zakat kepada mereka bertujuan untuk melembutkan hati dan menguatkan iman mereka."
+            },
+            {
+                id: 13,
+                title: "Orang yang Terlilit Hutang",
+                story: "Tetangga Zaki menangis sedih. Ia memiliki banyak hutang untuk biaya berobat ibunya di rumah sakit, dan ia sudah tidak sanggup lagi membayarnya karena jatuh miskin.",
+                question: "Orang muslim yang memiliki banyak hutang untuk kebaikan (bukan maksiat) dan kesulitan/tidak mampu melunasinya disebut...",
+                options: [
+                    { text: "Gharim", correct: true },
+                    { text: "Fi Sabilillah", correct: false },
+                    { text: "Riqab", correct: false },
+                    { text: "Muzakki", correct: false }
+                ],
+                hint: "Golongan ke-6 dari asnaf zakat. Berawalan huruf G.",
+                explanation: "Gharim (atau Gharimin) adalah orang yang berhutang untuk kepentingan yang halal dan mendesak, namun tidak memiliki kemampuan untuk melunasinya."
+            },
+            {
+                id: 14,
+                title: "Pejuang Jalan Kebenaran",
+                story: "Zaki melihat para guru ngaji di pedalaman yang berdakwah mengajarkan Al-Qur'an tanpa pamrih, serta orang-orang yang membangun sekolah Islam di daerah pelosok.",
+                question: "Orang yang berjuang atau melakukan kegiatan demi menegakkan agama Allah SWT (Islam) disebut...",
+                options: [
+                    { text: "Ibnu Sabil", correct: false },
+                    { text: "Amil", correct: false },
+                    { text: "Fi Sabilillah", correct: true },
+                    { text: "Riqab", correct: false }
+                ],
+                hint: "Artinya 'Di jalan Allah'.",
+                explanation: "Fi Sabilillah mencakup orang-orang yang berjuang di jalan Allah dalam bentuk kegiatan dakwah, pendidikan Islam, kemaslahatan umat, dan mempertahankan kebenaran."
+            },
+            {
+                id: 15,
+                title: "Musafir yang Kehabisan Bekal",
+                story: "Di tengah perjalanan pulang, Zaki bertemu seorang musafir (pelajar yang merantau jauh) yang dompetnya hilang. Ia kehabisan uang dan tidak bisa melanjutkan perjalanan pulang ke kampung halamannya.",
+                question: "Musafir atau orang yang sedang dalam perjalanan jauh (bukan maksiat) dan kehabisan bekal/biaya disebut golongan...",
+                options: [
+                    { text: "Ibnu Sabil", correct: true },
+                    { text: "Mualaf", correct: false },
+                    { text: "Gharim", correct: false },
+                    { text: "Fakir", correct: false }
+                ],
+                hint: "Secara bahasa berarti 'Anak Jalan'. Berawalan huruf I.",
+                explanation: "Ibnu Sabil adalah orang yang sedang dalam perjalanan ketaatan kepada Allah (seperti menuntut ilmu atau berdakwah) dan kehabisan biaya atau perbekalan."
+            }
+        ];
+
+        // Game State Variables
+        let currentLevelIndex = 0;
+        let score = 0;
+        let lives = 3;
+        let hintsRemaining = 3;
+        
+        // Audio Context (Synthesized Sounds for no external dependencies)
+        let audioCtx;
+        
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            if (type === 'correct') {
+                // Happy chime
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+                oscillator.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+                oscillator.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+                
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.5);
+                createParticles(true);
+            } else if (type === 'wrong') {
+                // Sad buzzer
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+                
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.5);
+                
+                // Shake effect on question container
+                const questionBox = document.querySelector('.bg-white.rounded-3xl.p-6');
+                questionBox.classList.remove('animate-shake');
+                void questionBox.offsetWidth; // trigger reflow
+                questionBox.classList.add('animate-shake');
+            } else if (type === 'click') {
+                // Short pop
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'win') {
+                // Fanfare
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
+                oscillator.frequency.setValueAtTime(554.37, audioCtx.currentTime + 0.2); // C#5
+                oscillator.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.4); // E5
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime + 0.6); // A5
+                
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime + 0.8);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 1.5);
+                setInterval(() => createParticles(true), 300); // Continuous particles
+            }
+        }
+
+        function showMessage(msg) {
+            const box = document.getElementById('message-box');
+            box.textContent = msg;
+            box.classList.remove('hidden');
+            // Small delay to allow display:block to apply before changing opacity
+            setTimeout(() => {
+                box.classList.remove('opacity-0');
+                box.classList.add('opacity-100');
+            }, 10);
+            
+            setTimeout(() => {
+                box.classList.remove('opacity-100');
+                box.classList.add('opacity-0');
+                setTimeout(() => box.classList.add('hidden'), 300);
+            }, 3000);
+        }
+
+        function buildMap() {
+            const mapNodes = document.getElementById('map-nodes');
+            mapNodes.innerHTML = ''; // Clear existing
+            
+            // Generate nodes
+            for (let i = 0; i < levels.length; i++) {
+                const node = document.createElement('div');
+                node.className = `w-8 h-8 rounded-full border-2 border-white flex items-center justify-center font-bold text-xs shadow-md level-node z-10 relative`;
+                
+                // Styling based on state
+                if (i < currentLevelIndex) {
+                    node.classList.add('bg-green-500', 'text-white'); // Completed
+                    node.innerHTML = '✓';
+                } else if (i === currentLevelIndex) {
+                    node.classList.add('bg-yellow-400', 'text-yellow-900', 'current'); // Current
+                    node.innerHTML = i + 1;
+                    node.id = `node-${i}`;
+                } else {
+                    node.classList.add('bg-gray-300', 'text-gray-500', 'locked'); // Locked
+                    node.innerHTML = i + 1;
+                }
+                
+                mapNodes.appendChild(node);
+            }
+            updateAvatarPosition();
+        }
+
+        function updateAvatarPosition() {
+            // Need a slight delay to ensure grid is rendered to get bounding rects
+            setTimeout(() => {
+                const currentNode = document.getElementById(`node-${currentLevelIndex}`);
+                const mapContainer = document.getElementById('map-container');
+                const avatar = document.getElementById('player-avatar');
+                
+                if (currentNode && mapContainer) {
+                    const nodeRect = currentNode.getBoundingClientRect();
+                    const mapRect = mapContainer.getBoundingClientRect();
+                    
+                    // Calculate relative position (percentage)
+                    const leftPercent = ((nodeRect.left - mapRect.left + (nodeRect.width / 2)) / mapRect.width) * 100;
+                    const topPercent = ((nodeRect.top - mapRect.top + (nodeRect.height / 2)) / mapRect.height) * 100;
+                    
+                    avatar.style.left = `${leftPercent}%`;
+                    avatar.style.top = `${topPercent}%`;
+                }
+            }, 50);
+        }
+
+        function startGame() {
+            initAudio();
+            playSound('click');
+            
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('game-screen').classList.add('flex'); // Because flex-1 flex is needed
+            
+            // Reset state
+            currentLevelIndex = 0;
+            score = 0;
+            lives = 3;
+            hintsRemaining = 3;
+            
+            updateHUD();
+            loadLevel();
+            buildMap();
+        }
+
+        function resetGame() {
+            playSound('click');
+            document.getElementById('endgame-modal').classList.add('hidden');
+            startGame();
+        }
+
+        function updateHUD() {
+            document.getElementById('lives-display').textContent = lives;
+            document.getElementById('score-display').textContent = score;
+            document.getElementById('current-level-display').textContent = currentLevelIndex + 1;
+            document.getElementById('hint-count').textContent = hintsRemaining;
+            
+            const hintBtn = document.getElementById('hint-btn');
+            if (hintsRemaining <= 0) {
+                hintBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                hintBtn.onclick = null;
+            } else {
+                hintBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                hintBtn.onclick = useHint;
+            }
+        }
+
+        function loadLevel() {
+            const level = levels[currentLevelIndex];
+            
+            // Animate content change
+            const questionBox = document.querySelector('.bg-white.rounded-3xl.p-6');
+            questionBox.classList.remove('animate-slide-in');
+            void questionBox.offsetWidth;
+            questionBox.classList.add('animate-slide-in');
+
+            document.getElementById('level-title').textContent = `Level ${level.id}: ${level.title}`;
+            document.getElementById('story-text').textContent = level.story;
+            document.getElementById('question-text').textContent = level.question;
+            
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            
+            // Shuffle options for variation
+            const shuffledOptions = [...level.options].sort(() => Math.random() - 0.5);
+            
+            shuffledOptions.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-game bg-white border-4 border-slate-200 hover:border-green-400 hover:bg-green-50 text-slate-700 font-bold py-4 px-6 rounded-2xl text-left transition-colors relative overflow-hidden';
+                
+                // Add letter (A, B, C, D)
+                const letter = String.fromCharCode(65 + index);
+                btn.innerHTML = `<span class="inline-block w-8 h-8 bg-slate-100 text-slate-500 text-center rounded-full mr-3 leading-8">${letter}</span> ${opt.text}`;
+                
+                btn.onclick = () => checkAnswer(opt.correct, opt.text, btn);
+                optionsContainer.appendChild(btn);
+            });
+            
+            buildMap();
+        }
+
+        function useHint() {
+            if (hintsRemaining > 0) {
+                playSound('click');
+                hintsRemaining--;
+                updateHUD();
+                
+                const level = levels[currentLevelIndex];
+                showMessage(`💡 Petunjuk: ${level.hint}`);
+                
+                // Disable hint button for this level
+                const hintBtn = document.getElementById('hint-btn');
+                hintBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                hintBtn.onclick = () => showMessage('Petunjuk sudah digunakan di level ini.');
+            }
+        }
+
+        function checkAnswer(isCorrect, answerText, btnElement) {
+            // Disable all buttons to prevent double clicking
+            const buttons = document.getElementById('options-container').querySelectorAll('button');
+            buttons.forEach(b => {
+                b.disabled = true;
+                b.classList.remove('hover:border-green-400', 'hover:bg-green-50');
+            });
+            
+            const level = levels[currentLevelIndex];
+            const modal = document.getElementById('feedback-modal');
+            const content = document.getElementById('feedback-content');
+            const title = document.getElementById('feedback-title');
+            const message = document.getElementById('feedback-message');
+            const icon = document.getElementById('feedback-icon');
+            const reward = document.getElementById('feedback-reward');
+            const nextBtn = document.getElementById('feedback-btn');
+            
+            if (isCorrect) {
+                playSound('correct');
+                btnElement.classList.replace('border-slate-200', 'border-green-500');
+                btnElement.classList.add('bg-green-100');
+                
+                score += 10;
+                updateHUD();
+                
+                icon.textContent = '✅';
+                title.textContent = 'Masyaallah, Benar!';
+                title.className = 'text-3xl title-font mb-2 text-green-600';
+                message.innerHTML = `Jawabanmu: <b>${answerText}</b><br><br>${level.explanation}`;
+                reward.classList.remove('hidden');
+                
+                if (currentLevelIndex === levels.length - 1) {
+                    nextBtn.textContent = 'Lihat Hasil Akhir 🏆';
+                } else {
+                    nextBtn.textContent = 'Lanjut Perjalanan ➔';
+                    nextBtn.className = 'btn-game bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full w-full';
+                }
+                
+                showFeedbackModal(true);
+            } else {
+                playSound('wrong');
+                btnElement.classList.replace('border-slate-200', 'border-red-500');
+                btnElement.classList.add('bg-red-100');
+                
+                lives--;
+                updateHUD();
+                
+                icon.textContent = '❌';
+                title.textContent = 'Belum Tepat!';
+                title.className = 'text-3xl title-font mb-2 text-red-600';
+                message.innerHTML = `Jawabanmu: <b>${answerText}</b><br><br>Ayo baca lagi materinya. ${level.explanation}`;
+                reward.classList.add('hidden');
+                
+                if (lives <= 0) {
+                    nextBtn.textContent = 'Ulangi Permainan 🔄';
+                    nextBtn.className = 'btn-game bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-8 rounded-full w-full';
+                } else {
+                    nextBtn.textContent = 'Coba Lagi Level Ini ➔';
+                    nextBtn.className = 'btn-game bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-full w-full';
+                }
+                
+                showFeedbackModal(false);
+            }
+        }
+
+        function showFeedbackModal(isCorrect) {
+            const modal = document.getElementById('feedback-modal');
+            const content = document.getElementById('feedback-content');
+            
+            modal.classList.remove('hidden');
+            // Small delay for transition
+            setTimeout(() => {
+                content.classList.remove('scale-90');
+                content.classList.add('scale-100');
+            }, 10);
+            
+            // Setup next action based on state
+            const nextBtn = document.getElementById('feedback-btn');
+            nextBtn.onclick = () => {
+                hideFeedbackModal();
+                setTimeout(() => {
+                    if (isCorrect) {
+                        nextLevel();
+                    } else if (lives <= 0) {
+                        gameOver();
+                    } else {
+                        // Re-enable options for try again on same level
+                        const buttons = document.getElementById('options-container').querySelectorAll('button');
+                        buttons.forEach(b => {
+                            b.disabled = false;
+                            b.className = 'btn-game bg-white border-4 border-slate-200 hover:border-green-400 hover:bg-green-50 text-slate-700 font-bold py-4 px-6 rounded-2xl text-left transition-colors relative overflow-hidden';
+                        });
+                    }
+                }, 300); // Wait for modal to hide
+            };
+        }
+
+        function hideFeedbackModal() {
+            playSound('click');
+            const modal = document.getElementById('feedback-modal');
+            const content = document.getElementById('feedback-content');
+            
+            content.classList.remove('scale-100');
+            content.classList.add('scale-90');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function nextLevel() {
+            currentLevelIndex++;
+            
+            if (currentLevelIndex >= levels.length) {
+                showVictory();
+            } else {
+                // Restore hint button functionality if they still have hints
+                if (hintsRemaining > 0) {
+                    const hintBtn = document.getElementById('hint-btn');
+                    hintBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    hintBtn.onclick = useHint;
+                }
+                updateHUD();
+                loadLevel();
+            }
+        }
+
+        function gameOver() {
+            showMessage("Nyawa habis! Jangan menyerah, ayo belajar lagi.");
+            // Reset to main screen logic or game over modal
+            setTimeout(resetGame, 2000);
+        }
+
+        function showVictory() {
+            playSound('win');
+            const endgameModal = document.getElementById('endgame-modal');
+            const finalScore = document.getElementById('final-score');
+            
+            // Add bonus points for remaining lives and hints
+            const bonusLives = lives * 20;
+            const bonusHints = hintsRemaining * 10;
+            score += bonusLives + bonusHints;
+            
+            finalScore.textContent = score;
+            
+            let message = "Kamu luar biasa!";
+            if(score === 150 + (3*20) + (3*10)) {
+                message = "Sempurna! Kamu pantas menjadi Duta Zakat Cilik!";
+            } else if (score > 100) {
+                message = "Hebat! Pengetahuanmu tentang Zakat sangat baik.";
+            } else {
+                message = "Bagus! Terus tingkatkan belajarmu ya.";
+            }
+            
+            document.getElementById('endgame-message').textContent = message;
+            
+            endgameModal.classList.remove('hidden');
+        }
+
+        function createParticles(isStar = false) {
+            const container = document.getElementById('particles');
+            const particleCount = isStar ? 30 : 15;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Random position and size
+                const size = Math.random() * 15 + 5;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.left = `${Math.random() * 100}vw`;
+                
+                // Colors
+                const colors = isStar ? ['#fbbf24', '#f59e0b', '#fb923c'] : ['#22c55e', '#16a34a', '#86efac'];
+                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Randomize shape (circle or square-ish)
+                if (Math.random() > 0.5) {
+                    particle.style.borderRadius = '2px';
+                    if(isStar) particle.innerHTML = '⭐'; // Optional visual enhancement
+                }
+                
+                // Random animation duration
+                particle.style.animationDuration = `${Math.random() * 1 + 0.5}s`;
+                
+                container.appendChild(particle);
+                
+                // Remove after animation
+                setTimeout(() => {
+                    if (container.contains(particle)) {
+                        container.removeChild(particle);
+                    }
+                }, 1500);
+            }
+        }
+
+        // Window resize handler to reposition avatar correctly
+        window.addEventListener('resize', () => {
+            if (!document.getElementById('game-screen').classList.contains('hidden')) {
+                updateAvatarPosition();
+            }
+        });
+        
+    </script>
+</body>
+</html>
